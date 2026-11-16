@@ -5,5 +5,11 @@ export interface Binning{kind:string;labels:string[];internal_edges?:number[];ca
 export interface Metrics{psi:number;js:number;reference_proportions:number[];candidate_proportions:number[];reference_counts:number[];candidate_counts:number[];reference_n:number;candidate_n:number;reference_missing:number;candidate_missing:number;binning:Binning;p_value:number|null;q_value:number|null;ks_statistic:number|null;fdr_reject:boolean;ks_reference_n?:number;ks_candidate_n?:number}
 export interface Finding{id:number;run_id:number;feature:string;status:string;metrics:Metrics}
 export interface Run{id:number;name:string;reference_id:number;candidate_id:number;status:string;config:{features:string[];bins:number;smoothing:number;fdr_alpha:number;slice_language:string|null;slice_device:string|null};result:{fingerprint?:string;reference_n?:number;candidate_n?:number;test_family?:{method:string;m:number;alpha:number;features:string[]}};error?:string;created_at:string}
-export interface Plan{id:number;name:string;run_id:number;finding_ids:number[];target_slice:string;sample_target:number;rationale:string;status:string;review_note:string;created_at:string}
+export interface FamilySlice{label:string;language:string|null;device:string|null}
+export interface TestFamilyKey{slice_index:number;feature:string}
+export interface FamilyTestFamily{method:string;m:number;alpha:number;features:string[];keys:TestFamilyKey[]}
+export interface FamilyMember{id:number;family_id:number;slice_index:number;label:string;slice_filter:{language:string|null;device:string|null};status:string;result:{reference_n?:number;candidate_n?:number};error?:string|null;attempts:number;updated_at:string}
+export interface FamilyFinding{id:number;family_id:number;member_id:number;feature:string;status:string;metrics:Metrics}
+export interface Family{id:number;family_key:string;version:number;name:string;reference_id:number;candidate_id:number;config:{features:string[];bins:number;smoothing:number;fdr_alpha:number};slices:FamilySlice[];reference_fingerprint:string;candidate_fingerprint:string;status:string;result:{fingerprint?:string;test_family?:FamilyTestFamily;member_count?:number};error?:string|null;created_at:string;published_at?:string|null}
+export interface Plan{id:number;name:string;run_id:number|null;family_id:number|null;finding_ids:number[];target_slice:string;sample_target:number;rationale:string;status:string;review_note:string;created_at:string}
 export interface Audit{id:number;actor:string;action:string;detail:object;created_at:string}

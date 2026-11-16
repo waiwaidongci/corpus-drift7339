@@ -5,7 +5,9 @@ from src.config.database import Base
 class ResamplingPlan(Base):
  __tablename__='resampling_plans'
  id:Mapped[int]=mapped_column(primary_key=True)
- run_id:Mapped[int]=mapped_column(ForeignKey('comparison_runs.id'))
+ # 单次比较与已发布校对族二选一引用
+ run_id:Mapped[int|None]=mapped_column(ForeignKey('comparison_runs.id'),nullable=True)
+ family_id:Mapped[int|None]=mapped_column(ForeignKey('comparison_families.id'),nullable=True)
  name:Mapped[str]=mapped_column(String(100))
  finding_ids:Mapped[list]=mapped_column(JSON)
  target_slice:Mapped[str]=mapped_column(String(160))

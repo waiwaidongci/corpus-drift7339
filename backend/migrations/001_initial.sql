@@ -2,3 +2,15 @@
 -- comparison_runs, drift_findings, resampling_plans, audit_logs at first boot.
 -- Natural keys: user email, snapshot name, (snapshot_id,reference),
 -- (run_id,feature). Production schema upgrades require explicit migrations.
+--
+-- 002 校对族（多切片检验族）增量结构：
+-- comparison_families: family_key+version 唯一；创建时冻结 config（特征/分箱/
+--   平滑/FDRα）、slices 切片清单、两份快照 SHA-256 校验；status 取
+--   queued/running/published/failed，任一成员失败即 failed 且不发布；
+--   result 在全部成员齐备后一次写入统一 BH 检验族与校正结果。
+-- family_members: (family_id,slice_index) 唯一；切片任务只按 member_id 归属，
+--   旧版本任务晚到无法写入新版本；记录 status/error/attempts。
+-- family_findings: (family_id,member_id,feature) 唯一；发布时写入每项原值与
+--   统一校正 q。
+-- resampling_plans: run_id 改为可空并新增可空 family_id，二者恰填其一；
+--   family_id 仅允许引用 status='published' 的校对族版本，旧版本计划可追溯。

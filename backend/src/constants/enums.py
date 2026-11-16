@@ -8,6 +8,16 @@ class RunStatus(StrEnum):
  RUNNING='running'
  SUCCEEDED='succeeded'
  FAILED='failed'
+class FamilyStatus(StrEnum):
+ QUEUED='queued'
+ RUNNING='running'
+ PUBLISHED='published'
+ FAILED='failed'
+class MemberStatus(StrEnum):
+ QUEUED='queued'
+ RUNNING='running'
+ SUCCEEDED='succeeded'
+ FAILED='failed'
 class PlanStatus(StrEnum):
  DRAFT='draft'
  APPROVED='approved'

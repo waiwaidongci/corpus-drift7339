@@ -6,6 +6,8 @@ from src.models import *
 from src.utils.security import hash_password
 from src.services.snapshots import get_utterances
 from src.services.comparison import compare_snapshots
+from src.services import families
+from src.schemas.family import FamilyInput,SliceInput
 from src.constants.features import FEATURES
 
 def seed():
@@ -24,11 +26,17 @@ def seed():
     generated.append({'reference':('NEW' if candidate else 'REF')+f'-{i+1:04d}','features':features})
    if not db.scalar(select(CorpusSnapshot).where(CorpusSnapshot.name==title)):
     snap=CorpusSnapshot(name=title,kind=kind,filename=f'yy-corpus-202611-{kind}.csv',description='匿名片段元特征；不含字幕正文；固定seed113。');db.add(snap);db.flush();db.add_all([Utterance(snapshot_id=snap.id,**x) for x in generated]);db.commit()
+  ref=db.scalar(select(CorpusSnapshot).where(CorpusSnapshot.kind=='reference'));cand=db.scalar(select(CorpusSnapshot).where(CorpusSnapshot.kind=='candidate'));admin=db.scalar(select(User).where(User.role=='admin'))
   if not db.scalar(select(ComparisonRun).where(ComparisonRun.name=='十一月采集分布初校')):
-   ref=db.scalar(select(CorpusSnapshot).where(CorpusSnapshot.kind=='reference'));cand=db.scalar(select(CorpusSnapshot).where(CorpusSnapshot.kind=='candidate'));admin=db.scalar(select(User).where(User.role=='admin'));config={'features':list(FEATURES),'bins':6,'smoothing':.5,'fdr_alpha':.05,'slice_language':None,'slice_device':None};result=compare_snapshots(get_utterances(db,ref.id),get_utterances(db,cand.id),config)
+   config={'features':list(FEATURES),'bins':6,'smoothing':.5,'fdr_alpha':.05,'slice_language':None,'slice_device':None};result=compare_snapshots(get_utterances(db,ref.id),get_utterances(db,cand.id),config)
    run=ComparisonRun(name='十一月采集分布初校',reference_id=ref.id,candidate_id=cand.id,config=config,status='succeeded',result={k:v for k,v in result.items() if k!='findings'},creator_id=admin.id);db.add(run);db.flush()
    for f in result['findings']:db.add(DriftFinding(run_id=run.id,**f))
    db.flush();ids=list(db.scalars(select(DriftFinding.id).where(DriftFinding.run_id==run.id,DriftFinding.status=='review')))
    db.add(ResamplingPlan(name='移动设备与短片段补采草案',run_id=run.id,finding_ids=ids or list(db.scalars(select(DriftFinding.id).where(DriftFinding.run_id==run.id).limit(1))),target_slice='studio / 长时片段覆盖复核',sample_target=200,rationale='先核对来源和采样口径，再讨论补采，漂移不等于模型质量下降。',creator_id=admin.id));db.add(AuditLog(actor='seed',action='demo.created',detail={'seed':113,'utterances':1800}));db.commit()
-  counts={t.__tablename__:db.scalar(select(func.count()).select_from(t)) for t in [User,CorpusSnapshot,Utterance,ComparisonRun,DriftFinding,ResamplingPlan]};print(json.dumps(counts));return counts
+  if not db.scalar(select(ComparisonFamily).where(ComparisonFamily.family_key=='november-multi-slice')):
+   family_input=FamilyInput(family_key='november-multi-slice',name='十一月多切片校对族',reference_id=ref.id,candidate_id=cand.id,features=list(FEATURES),bins=6,smoothing=.5,fdr_alpha=.05,slices=[SliceInput(label='全量'),SliceInput(label='中文切片',language='zh'),SliceInput(label='移动设备切片',device='mobile'),SliceInput(label='中文移动切片',language='zh',device='mobile')])
+   # seed可能在无队列环境独立运行：建族不派发，由本进程同步完成全部成员并发布
+   fam_row=families.create_family(db,family_input,admin,dispatch=False)
+   for member in families.list_members(db,fam_row['id']):families.run_member(db,member['id'])
+  counts={t.__tablename__:db.scalar(select(func.count()).select_from(t)) for t in [User,CorpusSnapshot,Utterance,ComparisonRun,DriftFinding,ResamplingPlan,ComparisonFamily,FamilyMember,FamilyFinding]};print(json.dumps(counts));return counts
 if __name__=='__main__':seed()
